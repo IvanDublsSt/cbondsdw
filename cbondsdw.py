@@ -10,7 +10,7 @@ from PIL import Image
 from io import BytesIO
 import urllib.request
 import urllib.request
-
+import datetime
 
 
 def open_cbonds(login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", newdriver = True, executable_path = r"chromedriver.exe"):
@@ -110,7 +110,7 @@ def dates_correct(begin = "01.01.2015", end = "31.12.2020"):
         print("corrected dates")
         
         
-def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = []):
+def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = [], pause = False):
     global driver
     #define variables
     print("")
@@ -134,7 +134,7 @@ def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password 
         except:
             driver_on = 0
         if driver_on == 0:
-            open_cbonds(login, password, newdriver = True, executable_path = executable_path)
+            open_cbonds(login, password, newdriver = True, executable_path = executable_path, begin = begin, end=end)
         else:
             pass
     
@@ -185,14 +185,33 @@ def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password 
             dates_are_wrong = 0
         except:
             dates_are_wrong = 1
+        
         if dates_are_wrong == 1:
             check_pro_message()
             check_cookies()
             print("wrong dates")
-            dates_correct(begin, end)
+            dates_correct(begin = begin, end = end)
             check_pro_message()
             check_cookies()
-    
+
+    #check whether dates not just exist, but are those which are needed (and correct if not)
+    def date_check_precise(begin, end):
+        global driver
+        print(driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_from hasDatepicker']").get_attribute("value") )
+        print(driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_to hasDatepicker']").get_attribute("value"))
+        print(begin)
+        print(end)
+        while driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_from hasDatepicker']").get_attribute("value") != begin or driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_to hasDatepicker']").get_attribute("value") != end:
+            print("Dates are mad")
+            elem = driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_from hasDatepicker']")
+            elem.clear()
+            elem.send_keys(begin)
+            elem = driver.find_element_by_xpath("//input[@class='oform_date_input datepicker tradings-date_to hasDatepicker']")
+            elem.clear()
+            elem.send_keys(end)
+        print("Dates are ok now")
+
+
     #check for issuer window to be open:
     def check_issuer_window():
         print("issuer check")
@@ -290,8 +309,27 @@ def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password 
     #The Loop
     for i in bondlist:
         start = time.time()
-        print("started " + i)
+        print(i)
+        print("started " + str(i))
         print("Bond number " + str(bigbondlist.index(i)))
+        #if pause argument is passed, sleep at different moments
+        if bigbondlist.index(i) != 0:
+            if pause != False:
+                sleeptime = random.randint(0, pause)
+                print("Sleeping for " + str(sleeptime) + " sec")
+                time.sleep(sleeptime)
+            if pause != False and bigbondlist.index(i)%30 == 0:
+                sleeptime =  random.randint(0, 2*pause)
+                print("Sleeping for " + str(sleeptime) + " sec")
+                time.sleep(sleeptime)
+            if pause != False and bigbondlist.index(i)%100 == 0:
+                sleeptime =  random.randint(0, 4*pause)
+                print("Sleeping for " + str(sleeptime) + " sec")
+                time.sleep(sleeptime)
+            if pause != False and bigbondlist.index(i)%200 == 0:
+                sleeptime =  random.randint(0, 20*pause)
+                print("Sleeping for " + str(sleeptime) + " sec")
+                time.sleep(sleeptime)
         results = normal_way(i)
         problems = results[0]
         names.append(i)
@@ -314,6 +352,11 @@ def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password 
                 print("bad error")
                 badnames.append(i)
                 results = [1,False, False]
+        try:
+            date_check_precise(begin = begin, end = end)
+            dates_check_local()
+        except:
+            dates_check_local()
         #whatever happened, we are saving results 
         found_nothing.append(results[1])
         found_too_much.append(results[2])
@@ -322,10 +365,11 @@ def PrimaryDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password 
     
         
         
-def RepeatDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = [], path = "C://Users//Fride//Downloads"):
-    file = open(path+ "//found_nothing"+ str(time.time()) + ".txt", "w")
-    file2 = open(path+ "//found_too_much"+ str(time.time()) + ".txt", "w")
-    file3 = open(path+ "//bad_results"+ str(time.time()) + ".txt", "w")
+def RepeatDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = [], path = "C://Users//Fride//Downloads", pause = False):
+    now = datetime.datetime.now().strftime("%H:%M:%S").replace(":", "-")
+    file = open(path+ "//found_nothing"+ now + ".txt", "w")
+    file2 = open(path+ "//found_too_much"+ now + ".txt", "w")
+    file3 = open(path+ "//bad_results"+ now + ".txt", "w")
     try:
         driver
     except:
@@ -336,7 +380,7 @@ def RepeatDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password =
     found_nothing = []
     found_too_much = []
     badcheck = 0
-    results = PrimaryDownloadCbonds(bondlist, login, password, begin, end, executable_path, bigbondlist)
+    results = PrimaryDownloadCbonds(bondlist, login, password, begin, end, executable_path, bigbondlist, pause = pause)
     badnames = results[3]
     found_nothing += list(np.array(results[0])[results[1]])
     found_too_much += list(np.array(results[0])[results[2]])
@@ -344,10 +388,10 @@ def RepeatDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password =
     while ((badnamesold != badnames) and (badnames != [])) or (badcheck == 1):
         print("repeat gain")
         if driver is None:
-            open_cbonds(login, password, begin, end, executable_path = executable_path)
+            open_cbonds(login, password, begin = begin, end = end, executable_path = executable_path)
             
         badnamesold = badnames.copy()
-        results = PrimaryDownloadCbonds(badnames, login, password, begin, end, executable_path, bigbondlist)
+        results = PrimaryDownloadCbonds(badnames, login, password, begin, end, executable_path, bigbondlist, pause = pause)
         badnames = results[3]
         found_nothing += list(np.array(results[0])[results[1]])
         found_too_much += list(np.array(results[0])[results[2]])
@@ -369,18 +413,19 @@ def RepeatDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password =
     #file2.close()        
         
         
-def LongListDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = [], path = "C://Users//Fride//Downloads"):
+def LongListDownloadCbonds(bondlist, login = "isdublenskiy@edu.hse.ru", password = "1234567890", begin = "01.01.2015", end = "31.12.2020", executable_path = r"chromedriver.exe", bigbondlist = [], path = "C://Users//Fride//Downloads", pause = False):
     if bigbondlist == []:
         bigbondlist = bondlist
     if len(bondlist) <= 50:
-        RepeatDownloadCbonds(bondlist, login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist)
+        RepeatDownloadCbonds(bondlist, login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist, pause = pause)
     else:
         number_of_full_iterations = len(bondlist)//50
         remained_iteration = len(bondlist)%50
         for i in range(number_of_full_iterations):
             i+=1
+            print(i)
             print("From " + str((i-1)*50) + " to " + str(i*50))
-            RepeatDownloadCbonds(bondlist[((i-1)*50):(i*50)], login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist)
+            RepeatDownloadCbonds(bondlist[((i-1)*50):(i*50)], login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist, pause = pause)
         print("From " + str(number_of_full_iterations*50) + " to " + str(number_of_full_iterations*50 + remained_iteration))
-        RepeatDownloadCbonds(bondlist[(number_of_full_iterations*50):(number_of_full_iterations*50 + remained_iteration)], login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist)
+        RepeatDownloadCbonds(bondlist[(number_of_full_iterations*50):(number_of_full_iterations*50 + remained_iteration)], login = login, password = password, begin = begin, end = end, path = path, executable_path = executable_path, bigbondlist = bigbondlist, pause = pause)
 
